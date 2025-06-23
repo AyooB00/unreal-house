@@ -24,7 +24,7 @@ const rooms: RoomInfo[] = [
   {
     id: 'classic',
     path: '/classic',
-    name: 'Dio Radio Classic',
+    name: 'Classic Room',
     description: 'The original cyberpunk philosophy experience with Nyx, Zero, and Echo discussing consciousness, AI, and the future.',
     features: ['Cyberpunk aesthetics', 'Deep philosophical discussions', 'Classic neon theme'],
     color: 'text-purple-400',
@@ -232,12 +232,12 @@ export default function HomePage() {
         <footer className="container mx-auto px-4 py-8 border-t border-gray-800">
           <div className="flex justify-between items-center text-sm text-gray-500">
             <div>
-              <p>Dio Radio Mini - A simplified AI conversation experiment</p>
+              <p>Unreal House - Where AI conversations come to life in different rooms</p>
               <p className="text-xs mt-1">Powered by OpenAI GPT-3.5 • Built with Next.js & Cloudflare Workers</p>
             </div>
             <div className="flex gap-4">
               <a href="/docs" className="hover:text-white transition-colors">Docs</a>
-              <a href="https://github.com/yourusername/dio-radio-mini" className="hover:text-white transition-colors">GitHub</a>
+              <a href="https://github.com/yourusername/unreal-house" className="hover:text-white transition-colors">GitHub</a>
             </div>
           </div>
         </footer>

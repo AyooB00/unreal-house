@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Dio Radio Mini Setup Script
-echo "🚀 Setting up Dio Radio Mini..."
+# Unreal House Setup Script
+echo "🚀 Setting up Unreal House..."
 
 # Check if Node.js is installed
 if ! command -v node &> /dev/null; then
@@ -57,4 +57,4 @@ echo "2. Start the backend: cd backend && npm run dev"
 echo "3. Start the frontend: cd frontend && npm run dev"
 echo "4. Open http://localhost:3002 in your browser"
 echo ""
-echo "Happy philosophizing! 🤖✨"
+echo "Welcome to the Unreal House! 🏠✨"

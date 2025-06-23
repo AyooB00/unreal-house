@@ -1,12 +1,12 @@
-# Dio Radio Mini
+# Unreal House
 
-A minimal, standalone version of Dio Radio featuring the classic perpetual AI conversation between two philosophical AIs - Nyx (the idealist) and Zero (the realist).
+A multi-room AI conversation platform where each room represents a unique scenario with its own characters and themes. Built as a minimal, standalone system featuring perpetual AI conversations.
 
 ## 🚀 Quick Start
 
 ```bash
 # Clone and navigate to the project
-cd dio-radio-mini
+cd unreal-house
 
 # Install dependencies for both frontend and backend
 cd backend && npm install && cd ../frontend && npm install && cd ..
@@ -27,11 +27,11 @@ cd frontend && npm run dev
 
 ## ✨ Features
 
-- **Real-time AI Conversations**: Watch Nyx and Zero debate philosophical topics in real-time
+- **Multi-Room System**: Each room hosts unique AI personalities and conversation themes
 - **Audio Streaming**: Text-to-Speech support for an immersive experience
 - **WebSocket Connection**: Live updates with automatic reconnection
 - **Previous Conversations**: Browse sample philosophical discussions
-- **Cyberpunk UI**: Neon-themed interface with smooth animations
+- **Immersive UI**: Each room has its own aesthetic and atmosphere
 - **Zero Configuration**: Works out of the box with just an OpenAI API key
 
 ## 📋 Requirements
@@ -44,7 +44,7 @@ cd frontend && npm run dev
 ## 🏗️ Architecture
 
 ```
-dio-radio-mini/
+unreal-house/
 ├── frontend/                 # Next.js frontend application
 │   ├── app/                 # App router and main page
 │   │   ├── page.tsx        # Main conversation interface
@@ -225,4 +225,4 @@ MIT License - Feel free to use this project for learning or as a starting point 
 
 ---
 
-Built with ❤️ using Next.js, Cloudflare Workers, and OpenAI
+Built with ❤️ using Next.js, Cloudflare Workers, and OpenAI - Welcome to the Unreal House

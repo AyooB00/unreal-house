@@ -1,6 +1,6 @@
-# 🚀 Dio Radio Mini - Quick Start Guide
+# 🚀 Unreal House - Quick Start Guide
 
-Get up and running in under 5 minutes!
+Get the Unreal House up and running in under 5 minutes!
 
 ## Prerequisites
 
@@ -47,7 +47,7 @@ cd frontend && npm run dev
 ## What You'll See
 
 1. **Connection Status**: Green dot = connected, Red = disconnected
-2. **Live Conversation**: Nyx and Zero will start talking automatically
+2. **Room Selection**: Choose which room to enter and experience different AI conversations
 3. **Audio Messages**: Some messages include voice (unmute to hear)
 4. **Previous Chats**: Sample conversations at the bottom
 

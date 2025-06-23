@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🛑 Stopping Dio Radio Mini servers..."
+echo "🛑 Stopping Unreal House servers..."
 
 # Kill processes on port 3002 (frontend)
 if lsof -i :3002 >/dev/null 2>&1; then

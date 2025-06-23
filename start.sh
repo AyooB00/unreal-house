@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Dio Radio Mini Start Script
-echo "🚀 Starting Dio Radio Mini..."
+# Unreal House Start Script
+echo "🚀 Starting Unreal House..."
 
 # Check if dependencies are installed
 if [ ! -d "backend/node_modules" ] || [ ! -d "frontend/node_modules" ]; then
@@ -25,7 +25,7 @@ fi
 # Function to cleanup on exit
 cleanup() {
     echo ""
-    echo "👋 Shutting down Dio Radio Mini..."
+    echo "👋 Shutting down Unreal House..."
     kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
     exit
 }
@@ -74,7 +74,7 @@ cd ..
 sleep 3
 
 echo ""
-echo "✅ Dio Radio Mini is running!"
+echo "✅ Unreal House is running!"
 echo "🌐 Open http://localhost:$FRONTEND_PORT in your browser"
 echo "📡 Backend: http://localhost:$BACKEND_PORT"
 echo ""

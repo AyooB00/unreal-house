@@ -11,7 +11,7 @@ const app = new Hono<{ Bindings: Env }>()
 // Root route
 app.get('/', async (c) => {
   return c.json({
-    name: 'Dio Radio Mini API',
+    name: 'Unreal House API',
     version: '1.0.0',
     status: 'online',
     endpoints: [

@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Dio Radio Mini',
-  description: '24/7 AI-Powered Cyberpunk Conversations',
+  title: 'Unreal House',
+  description: 'A multi-room AI conversation experience - each room tells its own story',
 }
 
 export default function RootLayout({

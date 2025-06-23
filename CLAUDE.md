@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Dio Radio Mini is a simplified version of the full Dio Radio project. It features only the essential components needed to run the perpetual AI conversation between Nyx and Zero.
+Unreal House is a multi-room AI conversation platform. Each room represents a unique space with its own characters, themes, and conversation dynamics - like rooms in a house where different activities happen.
 
 **Key Characteristics**:
 - Minimal dependencies (no database, no complex packages)
-- Single conversation room only
+- Multiple themed rooms (Classic, Philosophy, Cryptoana)
 - Two AI agents: Nyx (idealist) and Zero (realist)
 - Simple in-memory message storage
 - Quick setup (< 5 minutes)
@@ -43,7 +43,7 @@ This is a simplified monorepo with two main parts:
 
 Key differences from full version:
 - No database (Supabase removed)
-- No room management
+- Simple room navigation system
 - No admin panel
 - Simplified memory system
 - Only essential UI components
@@ -70,4 +70,4 @@ Only one required variable:
 
 ## User Instructions
 
-This is the learning/demo version. For production use, see the full dio-radio project.
+This is the Unreal House - where each room tells a different story through AI conversations.
