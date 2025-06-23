@@ -1,0 +1,21 @@
+name = "dio-radio-mini"
+main = "src/index.ts"
+compatibility_date = "2025-01-13"
+
+[env.development]
+vars = { ENVIRONMENT = "development" }
+
+[env.production]
+vars = { ENVIRONMENT = "production" }
+
+[[durable_objects.bindings]]
+name = "CONVERSATION_ROOM"
+class_name = "ConversationRoom"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["ConversationRoom"]
+
+[dev]
+port = 8787
+local_protocol = "http"

@@ -1,0 +1,20 @@
+{
+  "name": "dio-radio-mini-backend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "./dev.sh",
+    "build": "wrangler build",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "hono": "^3.11.0",
+    "@dio-radio-mini/shared": "file:../shared"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20231218.0",
+    "@types/node": "^20",
+    "typescript": "^5.3.3",
+    "wrangler": "^4.20.5"
+  }
+}
