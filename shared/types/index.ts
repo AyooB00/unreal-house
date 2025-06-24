@@ -18,10 +18,11 @@ export interface StatsData {
 }
 
 export interface WebSocketMessage {
-  type: 'message' | 'error' | 'connected' | 'stats';
-  data?: Message | Message[] | StatsData;
+  type: 'message' | 'error' | 'connected' | 'stats' | 'archive';
+  data?: Message | Message[] | StatsData | MessageArchive;
   error?: string;
   stats?: StatsData;
+  archives?: MessageArchive[];
 }
 
 export interface ConversationState {

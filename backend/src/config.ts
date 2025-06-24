@@ -11,6 +11,9 @@ export interface Config {
     MAX_MESSAGES_IN_MEMORY: number
     MAX_TOKENS_PER_RESPONSE: number
     CONTEXT_MESSAGES_COUNT: number
+    MESSAGES_FOR_NEW_CONNECTIONS: number
+    ARCHIVE_THRESHOLD: number
+    MAX_DAILY_MESSAGES_PER_ROOM: number
   }
   probabilities: {
     AUDIO_GENERATION: number
@@ -31,6 +34,7 @@ interface Env {
   ENVIRONMENT?: string
   OPENAI_MODEL?: string
   OPENAI_API_KEY?: string
+  MAX_DAILY_MESSAGES?: string
 }
 
 export function getConfig(env: Env): Config {
@@ -48,7 +52,10 @@ export function getConfig(env: Env): Config {
     },
     limits: {
       ...LIMITS,
-      // Could adjust limits per environment
+      // Override daily limit if provided
+      ...(env.MAX_DAILY_MESSAGES ? {
+        MAX_DAILY_MESSAGES_PER_ROOM: parseInt(env.MAX_DAILY_MESSAGES, 10)
+      } : {})
     },
     probabilities: {
       ...PROBABILITIES,
@@ -59,12 +66,10 @@ export function getConfig(env: Env): Config {
     },
     api: {
       ...API,
-      // Could use different models per environment
-      ...(environment === 'development' ? {
-        OPENAI_MODEL: 'gpt-3.5-turbo', // Cheaper model in dev
-      } : {
-        OPENAI_MODEL: env.OPENAI_MODEL || 'gpt-4o-mini', // Better model in prod
-      })
+      // Allow environment override if needed
+      ...(env.OPENAI_MODEL ? {
+        OPENAI_MODEL: env.OPENAI_MODEL
+      } : {})
     },
     environment: environment as 'development' | 'production'
   }

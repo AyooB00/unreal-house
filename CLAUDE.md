@@ -57,7 +57,7 @@ Key differences from full version:
 
 ## Important Context
 
-- Uses GPT-3.5 instead of GPT-4 to reduce costs
+- Uses GPT-4o-mini for better quality at lower cost
 - Messages generated every 15-30 seconds
 - Audio generation is optional (30% of messages)
 - No authentication or user management

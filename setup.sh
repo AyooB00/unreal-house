@@ -1,60 +1,67 @@
 #!/bin/bash
 
 # Unreal House Setup Script
-echo "🚀 Setting up Unreal House..."
+# This script installs dependencies and sets up the environment
+
+echo "🏠 Welcome to Unreal House Setup"
+echo "================================"
 
 # Check if Node.js is installed
 if ! command -v node &> /dev/null; then
-    echo "❌ Node.js is not installed. Please install Node.js 18+ first."
+    echo "❌ Node.js is not installed. Please install Node.js 18 or higher."
     exit 1
 fi
 
-# Check Node.js version
-NODE_VERSION=$(node -v | cut -d'.' -f1 | sed 's/v//')
-if [ "$NODE_VERSION" -lt 18 ]; then
-    echo "❌ Node.js version 18+ required. Current version: $(node -v)"
-    exit 1
-fi
-
-echo "✅ Node.js $(node -v) detected"
+echo "✅ Node.js version: $(node --version)"
 
 # Install backend dependencies
+echo ""
 echo "📦 Installing backend dependencies..."
 cd backend
 npm install
 
-# Check for .env file
-if [ ! -f ".env" ]; then
-    if [ -f ".env.example" ]; then
+# Check if .env file exists
+if [ ! -f .env ]; then
+    echo ""
+    echo "📝 Creating .env file..."
+    if [ -f .env.example ]; then
         cp .env.example .env
-        echo "⚠️  Created .env file in backend directory"
+        echo "✅ Created .env from .env.example"
+        echo "⚠️  Please edit backend/.env and add your OpenAI API key"
+    else
+        echo "OPENAI_API_KEY=sk-your-key-here" > .env
+        echo "✅ Created default .env file"
         echo "⚠️  Please edit backend/.env and add your OpenAI API key"
     fi
 else
-    echo "✅ Backend .env file exists"
+    echo "✅ .env file already exists"
 fi
 
 # Install frontend dependencies
+echo ""
 echo "📦 Installing frontend dependencies..."
 cd ../frontend
 npm install
 
-# Check for .env.local file
-if [ ! -f ".env.local" ]; then
-    if [ -f ".env.local.example" ]; then
-        cp .env.local.example .env.local
-        echo "✅ Created .env.local file in frontend directory (using defaults)"
-    fi
+# Create .env.local if it doesn't exist
+if [ ! -f .env.local ]; then
+    echo ""
+    echo "📝 Creating frontend .env.local..."
+    echo "NEXT_PUBLIC_API_URL=http://localhost:8787" > .env.local
+    echo "NEXT_PUBLIC_WS_URL=ws://localhost:8787" >> .env.local
+    echo "✅ Created .env.local with default values"
+else
+    echo "✅ .env.local already exists"
 fi
 
-# Done
+cd ..
+
 echo ""
-echo "✅ Setup complete!"
+echo "✨ Setup complete!"
 echo ""
-echo "📝 Next steps:"
-echo "1. Add your OpenAI API key to backend/.env"
-echo "2. Start the backend: cd backend && npm run dev"
-echo "3. Start the frontend: cd frontend && npm run dev"
-echo "4. Open http://localhost:3002 in your browser"
+echo "Next steps:"
+echo "1. Edit backend/.env and add your OpenAI API key"
+echo "2. Run ./start.sh to start both servers"
+echo "3. Open http://localhost:3002 in your browser"
 echo ""
-echo "Welcome to the Unreal House! 🏠✨"
+echo "Happy chatting! 🤖"

@@ -168,7 +168,7 @@ function ClassicRadio() {
       <div className="container mx-auto px-4 py-16 flex-1 relative z-10">
         <header className="text-center mb-16">
           <h1 className="classic-title text-7xl font-bold mb-4">
-            DIO RADIO CLASSIC
+            UNREAL HOUSE CLASSIC
           </h1>
           <p className="text-xl classic-subtitle">
             The Original Cyberpunk Philosophy Station

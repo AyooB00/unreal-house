@@ -82,16 +82,16 @@ export const getRoomConfigs = (env: any): Record<RoomType, ExtendedRoomConfig> =
       timing: {
         minDelay: getNumber(env.CRYPTO_MIN_DELAY, 20000),
         maxDelay: getNumber(env.CRYPTO_MAX_DELAY, 35000),
-        initialDelay: getNumber(env.CRYPTO_INITIAL_DELAY, 7000)
+        initialDelay: getNumber(env.CRYPTO_INITIAL_DELAY, 1000)
       },
       audioProb: getNumber(env.CRYPTO_AUDIO_PROB, 0.25),
-      maxTokens: getNumber(env.CRYPTO_MAX_TOKENS, 120)
+      maxTokens: getNumber(env.CRYPTO_MAX_TOKENS, 600)
     },
     classic: {
       enabled: isEnabled(env.CLASSIC_ROOM_ENABLED, true),
       id: 'classic',
       type: 'classic',
-      name: 'Dio Radio Classic',
+      name: 'Unreal House Classic',
       agents: [AGENTS.NYX, AGENTS.ZERO, AGENTS.ECHO],
       topics: [
         "cyberpunk culture and aesthetics",

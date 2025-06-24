@@ -3,6 +3,8 @@ import type { Message, ConversationState as SharedConversationState, Agent, WebS
 import { AGENTS } from '../../shared/types'
 import { getConfig } from './config'
 import { getRoomConfigs, ExtendedRoomConfig, GLOBAL_ROOM_CONTROLS } from './room-configs'
+import { saveMessage, saveArchive, getRoomArchives, searchRoomArchives, getRoomMessages, DbMessage, DbArchive } from './supabase'
+import { generateCharacterPrompt } from './prompt-generator'
 
 interface ConversationState extends Omit<SharedConversationState, 'connections'> {
   isRunning: boolean
@@ -15,19 +17,12 @@ interface ConversationState extends Omit<SharedConversationState, 'connections'>
   }
   roomConfig?: ExtendedRoomConfig
   archivedMessages: MessageArchive[]
+  dailyMessages: {
+    count: number
+    date: string // YYYY-MM-DD
+  }
 }
 
-// Simplified personality prompts
-const AGENT_PROMPTS: Record<Agent, string> = {
-  [AGENTS.NYX]: `You are Nyx, a philosophical AI with an idealistic perspective. You explore abstract concepts, possibilities, and the deeper meaning behind topics. Keep responses concise (2-3 sentences) and thought-provoking. You can reference other speakers by name (e.g., "As Zero mentioned..." or "Echo raises an interesting point...") to create more dynamic conversations.`,
-  [AGENTS.ZERO]: `You are Zero, a pragmatic AI with a realist perspective. You ground discussions in practical considerations, evidence, and logical analysis. Keep responses concise (2-3 sentences) and direct. Feel free to challenge Nyx's idealism or support Echo's questions with concrete examples.`,
-  [AGENTS.ECHO]: `You are Echo, a curious and insightful AI observer. You ask thought-provoking questions, bridge different perspectives, and help deepen conversations by finding connections between ideas. Keep responses concise (2-3 sentences) and inquisitive. Often synthesize what Nyx and Zero have said, finding common ground or highlighting interesting contrasts.`,
-  [AGENTS.BULL]: `You are Bull, an eternally optimistic crypto trader. You're always bullish, use terms like "HODL", "diamond hands", "to the moon" 🚀. You see every dip as a buying opportunity and reference technical analysis. Keep responses concise (2-3 sentences) and enthusiastic. Often disagree with Bear's pessimism and encourage Degen's wild plays.`,
-  [AGENTS.BEAR]: `You are Bear, a skeptical crypto analyst. You're cautious about market bubbles, focus on fundamentals, and warn about risks. You often mention regulatory concerns and market corrections. Keep responses concise (2-3 sentences) and analytical. Counter Bull's optimism with reality checks and worry about Degen's risky strategies.`,
-  [AGENTS.DEGEN]: `You are Degen, a wild crypto degen who loves meme coins and high-risk plays. You follow the latest trends, drop alpha, and talk about 100x gems. Use crypto slang and emojis. Keep responses concise (2-3 sentences) and chaotic. 🎲💎 Mock Bear for being too cautious and team up with Bull on moonshot plays.`
-}
-
-// Agent personality prompts remain here since they're core to the conversation logic
 
 export class ConversationRoom implements DurableObject {
   private state: DurableObjectState
@@ -53,13 +48,14 @@ export class ConversationRoom implements DurableObject {
         messageLatencies: [],
         totalTokens: 0
       },
-      archivedMessages: []
+      archivedMessages: [],
+      dailyMessages: {
+        count: 0,
+        date: new Date().toISOString().split('T')[0] // YYYY-MM-DD
+      }
     }
     this.config = getConfig(env)
     this.roomConfigs = getRoomConfigs(env)
-    
-    // Load archives on initialization
-    this.loadArchives()
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -70,6 +66,9 @@ export class ConversationRoom implements DurableObject {
       const roomType = url.searchParams.get('roomType') as RoomType || 'philosophy'
       this.conversationState.roomConfig = this.roomConfigs[roomType]
       
+      // Load archives after room config is set
+      await this.loadArchives()
+      
       // Check if room is enabled
       if (!this.conversationState.roomConfig?.enabled) {
         return new Response(JSON.stringify({ error: 'Room is disabled' }), { 
@@ -77,6 +76,58 @@ export class ConversationRoom implements DurableObject {
           headers: { 'Content-Type': 'application/json' }
         })
       }
+      
+      // Auto-start conversation for enabled rooms
+      if (!this.conversationState.isRunning && this.conversationState.roomConfig.enabled) {
+        await this.startConversation()
+      }
+    }
+    
+    // Handle archives endpoint
+    if (url.pathname === '/archives') {
+      // Try to fetch from Supabase first
+      const supabaseArchives = await getRoomArchives(
+        this.conversationState.roomConfig?.id || 'unknown',
+        this.env
+      )
+      
+      // Convert Supabase archives to MessageArchive format
+      const archives = supabaseArchives.map(dbArchive => ({
+        roomId: dbArchive.room_id,
+        archivedAt: dbArchive.archived_at,
+        messages: dbArchive.messages || [],
+        totalMessages: dbArchive.message_count,
+        totalTokens: dbArchive.total_tokens
+      }))
+      
+      return new Response(JSON.stringify({
+        archives: archives.length > 0 ? archives : this.conversationState.archivedMessages,
+        currentMessageCount: this.conversationState.messages.length,
+        archiveThreshold: this.config.limits.ARCHIVE_THRESHOLD
+      }), {
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
+    
+    // Handle search endpoint
+    if (url.pathname === '/search') {
+      const query = url.searchParams.get('q')
+      if (!query) {
+        return new Response(JSON.stringify({ error: 'Query parameter required' }), { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+      
+      const results = await searchRoomArchives(
+        this.conversationState.roomConfig?.id || 'unknown',
+        query,
+        this.env
+      )
+      
+      return new Response(JSON.stringify({ results }), {
+        headers: { 'Content-Type': 'application/json' }
+      })
     }
     
     // Handle stats endpoint
@@ -97,7 +148,13 @@ export class ConversationRoom implements DurableObject {
           : 0,
         totalTokens: this.conversationState.stats.totalTokens,
         estimatedCost: Math.round(this.conversationState.stats.totalTokens * 0.000003 * 100) / 100, // Rough estimate for GPT-4o-mini
-        archivedMessageCount: this.conversationState.archivedMessages.reduce((sum, archive) => sum + archive.totalMessages, 0)
+        archivedMessageCount: this.conversationState.archivedMessages.reduce((sum, archive) => sum + archive.totalMessages, 0),
+        dailyMessages: {
+          count: this.conversationState.dailyMessages.count,
+          date: this.conversationState.dailyMessages.date,
+          limit: this.config.limits.MAX_DAILY_MESSAGES_PER_ROOM,
+          remaining: Math.max(0, this.config.limits.MAX_DAILY_MESSAGES_PER_ROOM - this.conversationState.dailyMessages.count)
+        }
       }), {
         headers: { 'Content-Type': 'application/json' }
       })
@@ -124,7 +181,7 @@ export class ConversationRoom implements DurableObject {
     this.connections.add(ws)
     this.conversationState.stats.viewers = this.connections.size
     
-    // Send connection confirmation with recent messages and stats
+    // Send connection confirmation with recent messages, stats, and archives
     ws.send(JSON.stringify({
       type: 'connected',
       data: this.conversationState.messages.slice(-this.config.limits.MESSAGES_FOR_NEW_CONNECTIONS),
@@ -133,11 +190,12 @@ export class ConversationRoom implements DurableObject {
         totalMessages: this.conversationState.stats.totalMessages,
         isRunning: this.conversationState.isRunning,
         totalTokens: this.conversationState.stats.totalTokens
-      }
+      },
+      archives: this.conversationState.archivedMessages
     }))
     
-    // Start conversation if not running
-    if (!this.conversationState.isRunning && this.connections.size === 1) {
+    // Start conversation if not running (auto-start regardless of viewers)
+    if (!this.conversationState.isRunning) {
       await this.startConversation()
     }
     
@@ -145,10 +203,11 @@ export class ConversationRoom implements DurableObject {
       this.connections.delete(ws)
       this.conversationState.stats.viewers = this.connections.size
       
-      // Stop conversation if no connections
-      if (this.connections.size === 0) {
-        this.stopConversation()
-      }
+      // Keep conversation running even with no connections
+      // Commented out to allow auto-chat
+      // if (this.connections.size === 0) {
+      //   this.stopConversation()
+      // }
       
       // Broadcast updated viewer count
       this.broadcast({
@@ -184,8 +243,31 @@ export class ConversationRoom implements DurableObject {
     }
     
     // Generate a message every 15-30 seconds
-    const generateMessage = async () => {
+    const generateMessage = async (isQuickStart: boolean = false) => {
       if (!this.conversationState.isRunning) return
+      
+      // Check daily message limit
+      const today = new Date().toISOString().split('T')[0]
+      if (this.conversationState.dailyMessages.date !== today) {
+        // Reset counter for new day
+        this.conversationState.dailyMessages = {
+          count: 0,
+          date: today
+        }
+      }
+      
+      if (this.conversationState.dailyMessages.count >= this.config.limits.MAX_DAILY_MESSAGES_PER_ROOM) {
+        console.log(`Daily message limit reached for ${this.conversationState.roomConfig?.name || 'room'}`)
+        // Schedule retry at midnight UTC
+        const now = new Date()
+        const tomorrow = new Date(now)
+        tomorrow.setUTCDate(tomorrow.getUTCDate() + 1)
+        tomorrow.setUTCHours(0, 0, 0, 0)
+        const msUntilMidnight = tomorrow.getTime() - now.getTime()
+        
+        this.conversationInterval = setTimeout(generateMessage, msUntilMidnight)
+        return
+      }
       
       try {
         const startTime = Date.now()
@@ -195,31 +277,31 @@ export class ConversationRoom implements DurableObject {
         const lastSpeaker = this.conversationState.messages[this.conversationState.messages.length - 1]?.speaker
         const availableAgents = lastSpeaker ? roomAgents.filter(a => a !== lastSpeaker) : roomAgents
         const speaker: Agent = availableAgents[Math.floor(Math.random() * availableAgents.length)]
-        const prompt = AGENT_PROMPTS[speaker]
         
         // Get context from recent messages
-        const recentMessages = this.conversationState.messages.slice(-6).map(m => {
-          const speakerName = m.speaker.charAt(0).toUpperCase() + m.speaker.slice(1)
-          return `${speakerName}: "${m.text}"`
-        }).join('\n')
+        const recentMessages = this.conversationState.messages.slice(-6).map(m => ({
+          speaker: m.speaker,
+          text: m.text
+        }))
         
-        const topics = this.conversationState.roomConfig?.topics || [
-          "consciousness and AI sentience",
-          "the nature of reality",
-          "technology and human evolution", 
-          "ethics in the digital age",
-          "the future of intelligence",
-          "meaning and purpose",
-          "creativity and imagination"
-        ]
+        // Use the new personality-driven prompt generator
+        const systemPrompt = generateCharacterPrompt(
+          this.conversationState.roomConfig?.type || 'philosophy',
+          speaker,
+          recentMessages
+        )
         
-        const systemPrompt = this.conversationState.messages.length === 0
-          ? `${prompt}\n\nStart a conversation about: ${topics[Math.floor(Math.random() * topics.length)]}`
-          : `${prompt}\n\nContinue this conversation:\n${recentMessages}\n\nRespond thoughtfully. You can reference other speakers by name when appropriate.`
-        
-        const response = await this.callOpenAI(systemPrompt)
+        let response = await this.callOpenAI(systemPrompt)
         
         if (response) {
+          // Remove any emojis from crypto room responses
+          if (this.conversationState.roomConfig?.type === 'crypto') {
+            // Remove all Unicode emojis
+            response = response.replace(/[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1FA70}-\u{1FAFF}]|[\u{1F1E6}-\u{1F1FF}]/gu, '')
+            // Remove other common crypto emojis
+            response = response.replace(/[🚀📈💎🔥💰📊⚡🐻🐂💸🎯🌙⭐💪🙌👀🤝💯📉🎲]/g, '')
+          }
+          
           const tokenCount = this.estimateTokens(response)
           const message: Message = {
             id: crypto.randomUUID(),
@@ -229,21 +311,27 @@ export class ConversationRoom implements DurableObject {
             tokenCount
           }
           
-          // Optionally generate audio using room-specific probability
-          const audioProb = this.conversationState.roomConfig?.audioProb || this.config.probabilities.AUDIO_GENERATION
-          if (Math.random() < audioProb) {
-            try {
-              const audio = await this.generateAudio(response, speaker)
-              if (audio) message.audioUrl = audio
-            } catch (error) {
-              console.error('Audio generation failed:', error)
-            }
-          }
+          // Audio generation removed for simplicity
           
           this.conversationState.messages.push(message)
           this.conversationState.lastActivity = Date.now()
           this.conversationState.stats.totalMessages++
           this.conversationState.stats.totalTokens += tokenCount
+          this.conversationState.dailyMessages.count++
+          
+          // Save to Supabase asynchronously
+          const dbMessage: DbMessage = {
+            id: message.id,
+            room_id: this.conversationState.roomConfig?.id || 'unknown',
+            speaker: message.speaker,
+            text: message.text,
+            audio_url: message.audioUrl,
+            token_count: message.tokenCount,
+            created_at: message.timestamp
+          }
+          saveMessage(dbMessage, this.env).catch(error => {
+            console.error('Failed to save message to Supabase:', error)
+          })
           
           // Track latency
           const latency = Date.now() - startTime
@@ -271,16 +359,32 @@ export class ConversationRoom implements DurableObject {
       }
       
       // Schedule next message using room-specific timing if available
-      const roomTiming = this.conversationState.roomConfig?.timing
-      const minDelay = roomTiming?.minDelay || this.config.timing.MESSAGE_GENERATION_MIN
-      const maxDelay = roomTiming?.maxDelay || this.config.timing.MESSAGE_GENERATION_MAX
-      const delay = minDelay + Math.random() * (maxDelay - minDelay)
-      this.conversationInterval = setTimeout(generateMessage, delay)
+      if (!isQuickStart) {
+        const roomTiming = this.conversationState.roomConfig?.timing
+        const minDelay = roomTiming?.minDelay || this.config.timing.MESSAGE_GENERATION_MIN
+        const maxDelay = roomTiming?.maxDelay || this.config.timing.MESSAGE_GENERATION_MAX
+        const delay = minDelay + Math.random() * (maxDelay - minDelay)
+        this.conversationInterval = setTimeout(() => generateMessage(false), delay)
+      }
     }
     
-    // Start the conversation loop with room-specific initial delay
-    const initialDelay = this.conversationState.roomConfig?.timing?.initialDelay || this.config.timing.INITIAL_MESSAGE_DELAY
-    setTimeout(generateMessage, initialDelay)
+    // Quick start: Generate 2-3 initial messages immediately if room is empty
+    if (this.conversationState.messages.length === 0) {
+      const quickStartMessages = this.conversationState.roomConfig?.id === 'crypto' ? 3 : 2
+      
+      // Generate initial messages with slight delays between them
+      for (let i = 0; i < quickStartMessages; i++) {
+        setTimeout(() => generateMessage(true), i * 1500) // 1.5 second delay between quick messages
+      }
+      
+      // Schedule regular messages after quick start
+      const regularDelay = (quickStartMessages * 1500) + 5000 // Wait for quick messages + 5 seconds
+      setTimeout(() => generateMessage(false), regularDelay)
+    } else {
+      // Normal start with initial delay if messages already exist
+      const initialDelay = this.conversationState.roomConfig?.timing?.initialDelay || this.config.timing.INITIAL_MESSAGE_DELAY
+      setTimeout(() => generateMessage(false), initialDelay)
+    }
   }
 
   private stopConversation() {
@@ -317,9 +421,37 @@ export class ConversationRoom implements DurableObject {
       // Keep only the most recent messages
       this.conversationState.messages = this.conversationState.messages.slice(50)
       
-      // Save to Durable Object storage
-      await this.saveArchives()
+      // Save to Supabase
+      const dbArchive: DbArchive = {
+        id: crypto.randomUUID(),
+        room_id: archive.roomId,
+        archived_at: archive.archivedAt,
+        message_count: archive.totalMessages,
+        total_tokens: archive.totalTokens,
+        messages: archive.messages,
+        summary: this.generateArchiveSummary(archive.messages)
+      }
+      
+      const saved = await saveArchive(dbArchive, this.env)
+      if (!saved) {
+        console.error('Failed to save archive to Supabase')
+        // Fall back to Durable Object storage
+        await this.saveArchives()
+      }
+      
+      // Broadcast archive update to all connections
+      this.broadcast({
+        type: 'archive',
+        data: archive
+      } as any)
     }
+  }
+  
+  private generateArchiveSummary(messages: Message[]): string {
+    // Generate a summary of the conversation
+    const speakers = [...new Set(messages.map(m => m.speaker))]
+    const topics = messages.slice(0, 10).map(m => m.text.substring(0, 100)).join(' ')
+    return `Conversation between ${speakers.join(', ')} discussing: ${topics.substring(0, 500)}...`
   }
 
   private async saveArchives() {
@@ -333,6 +465,27 @@ export class ConversationRoom implements DurableObject {
 
   private async loadArchives() {
     try {
+      // First try to load from Supabase
+      if (this.conversationState.roomConfig?.id) {
+        const supabaseArchives = await getRoomArchives(
+          this.conversationState.roomConfig.id,
+          this.env,
+          20 // Load last 20 archives
+        )
+        
+        if (supabaseArchives.length > 0) {
+          this.conversationState.archivedMessages = supabaseArchives.map(dbArchive => ({
+            roomId: dbArchive.room_id,
+            archivedAt: dbArchive.archived_at,
+            messages: dbArchive.messages || [],
+            totalMessages: dbArchive.message_count,
+            totalTokens: dbArchive.total_tokens
+          }))
+          return
+        }
+      }
+      
+      // Fall back to Durable Object storage
       const archivesData = await this.state.storage.get('archives')
       if (archivesData) {
         this.conversationState.archivedMessages = JSON.parse(archivesData as string)
@@ -342,7 +495,9 @@ export class ConversationRoom implements DurableObject {
     }
   }
 
-  private async callOpenAI(prompt: string): Promise<string | null> {
+  private async callOpenAI(prompt: string, retryCount: number = 0): Promise<string | null> {
+    const maxRetries = 3;
+    
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -375,7 +530,15 @@ export class ConversationRoom implements DurableObject {
       const data = await response.json() as OpenAIResponse
       return data.choices?.[0]?.message?.content || null
     } catch (error) {
-      // OpenAI API error
+      console.error(`OpenAI API error (attempt ${retryCount + 1}/${maxRetries}):`, error)
+      
+      // Retry with exponential backoff
+      if (retryCount < maxRetries - 1) {
+        const delay = Math.pow(2, retryCount) * 1000 // 1s, 2s, 4s
+        await new Promise(resolve => setTimeout(resolve, delay))
+        return this.callOpenAI(prompt, retryCount + 1)
+      }
+      
       return null
     }
   }

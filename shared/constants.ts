@@ -11,6 +11,7 @@ export const LIMITS = {
   CONTEXT_MESSAGES_COUNT: 10,
   MESSAGES_FOR_NEW_CONNECTIONS: 10,
   ARCHIVE_THRESHOLD: 100,
+  MAX_DAILY_MESSAGES_PER_ROOM: 2000, // ~$0.90 per room per day with gpt-4o-mini
 } as const;
 
 export const PROBABILITIES = {
@@ -18,7 +19,7 @@ export const PROBABILITIES = {
 } as const;
 
 export const API = {
-  OPENAI_MODEL: 'gpt-3.5-turbo',
+  OPENAI_MODEL: 'gpt-4o-mini',
   OPENAI_TEMPERATURE: 0.8,
   OPENAI_MAX_TOKENS: 150,
   ELEVENLABS_VOICE_IDS: {
