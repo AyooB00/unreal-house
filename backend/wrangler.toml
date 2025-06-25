@@ -2,11 +2,28 @@ name = "unreal-house"
 main = "src/index.ts"
 compatibility_date = "2025-01-13"
 
+# Workers.dev subdomain (for initial deployment)
+workers_dev = true
+
+# Custom routes (uncomment and update when using custom domain)
+# routes = [
+#   { pattern = "yourdomain.com/api/*", zone_name = "yourdomain.com" },
+#   { pattern = "yourdomain.com/stream", zone_name = "yourdomain.com" },
+#   { pattern = "yourdomain.com/health", zone_name = "yourdomain.com" }
+# ]
+
 [env.development]
-vars = { ENVIRONMENT = "development" }
+vars = { 
+  ENVIRONMENT = "development",
+  CORS_ORIGIN = "http://localhost:3002"
+}
 
 [env.production]
-vars = { ENVIRONMENT = "production" }
+vars = { 
+  ENVIRONMENT = "production",
+  # Update this after deploying Pages
+  CORS_ORIGIN = "https://unreal-house.pages.dev"
+}
 
 [[durable_objects.bindings]]
 name = "CONVERSATION_ROOM"
@@ -19,3 +36,15 @@ new_classes = ["ConversationRoom"]
 [dev]
 port = 8787
 local_protocol = "http"
+
+# Build configuration
+[build]
+command = "npm install"
+
+# AI Model Configuration (applies to all environments)
+[vars]
+OPENAI_MODEL = "gpt-4o-mini"
+MAX_DAILY_MESSAGES = "2000"
+
+# Secrets to set with wrangler:
+# wrangler secret put OPENAI_API_KEY

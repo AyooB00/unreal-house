@@ -21,7 +21,12 @@ export function useWebSocket(roomType: string): SimpleWebSocketReturn {
   const [stats, setStats] = useState<SimpleWebSocketReturn['stats']>({})
   const [archives, setArchives] = useState<MessageArchive[]>([])
   
-  const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8787'}/stream/${roomType}`
+  // When deployed on same domain, use relative WebSocket URL
+  const wsUrl = process.env.NEXT_PUBLIC_WS_URL 
+    ? `${process.env.NEXT_PUBLIC_WS_URL}/stream/${roomType}`
+    : typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+      ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/stream/${roomType}`
+      : `ws://localhost:8787/stream/${roomType}`
   
   const { connectionState } = useBaseWebSocket({
     url: wsUrl,
